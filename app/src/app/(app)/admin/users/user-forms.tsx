@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useActionState, useState, type FormEvent } from "react";
+import { useActionState, useState } from "react";
+import { submitWith } from "@/lib/submit-form";
 import { ROLE_LABELS, ROLES, ROLES_REQUIRING_REGION, type Role } from "@/lib/rbac";
 import { createUser, updateUserAccess, type FormState } from "./actions";
 
@@ -44,18 +45,6 @@ function AccessFields({
       )}
     </>
   );
-}
-
-// Jangan pakai <form action={...}>: React 19 me-reset form setelah action selesai, dan
-// <select> terkontrol kembali ke opsi pertama (Superadmin) di DOM sementara state tetap.
-// Simpan berikutnya lalu mengirim "superadmin" tanpa disadari (eskalasi hak akses).
-// Dengan onSubmit manual, form tidak di-reset otomatis.
-function submitWith(dispatch: (fd: FormData) => void) {
-  return (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    startTransition(() => dispatch(fd));
-  };
 }
 
 function Message({ state }: { state: FormState }) {

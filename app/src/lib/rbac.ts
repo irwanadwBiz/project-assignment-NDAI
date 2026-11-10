@@ -19,7 +19,9 @@ export const PERMISSIONS = [
   "users:manage", // kelola akun, peran, wilayah (M1-02)
   "audit:read", // penelusuran audit log (M3-05)
   "dashboard:view",
-  "merchants:read", // master merchant, dibatasi wilayah
+  "merchants:read", // lihat master merchant & perangkat, dibatasi wilayah
+  "merchants:manage", // daftarkan/ubah merchant di wilayahnya
+  "devices:manage", // tambah/ubah perangkat merchant di wilayahnya
   "complaints:read", // daftar/detail aduan (M4)
   "complaints:approve", // setujui/tolak aduan (M4-03)
   "assignments:manage", // tugaskan teknisi, reassign (M5)
@@ -40,6 +42,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   supervisor: [
     "dashboard:view",
     "merchants:read",
+    "merchants:manage",
+    "devices:manage",
     "complaints:read",
     "complaints:approve",
     "assignments:manage",
@@ -81,6 +85,14 @@ export const ROLE_SCOPE: Record<Role, DataScope> = {
 // Peran yang wajib punya minimal satu wilayah.
 export const ROLES_REQUIRING_REGION: readonly Role[] = ["supervisor", "teknisi"];
 
+// PRD bagian 3: Analis memakai data analitik dengan masking. Nama pemilik, alamat,
+// telepon, dan email merchant disamarkan saat ditampilkan untuk peran ini.
+export const ROLES_WITH_MASKED_PII: readonly Role[] = ["analis"];
+
+export function masksPII(role: Role): boolean {
+  return ROLES_WITH_MASKED_PII.includes(role);
+}
+
 export type MenuItem = {
   href: string;
   label: string;
@@ -101,6 +113,8 @@ export const ROLE_MENUS: Record<Role, readonly MenuItem[]> = {
     { href: "/assignment", label: "Assignment", permission: "assignments:manage", modul: "M5" },
     { href: "/antrean-cek", label: "Antrean Cek Manusia", permission: "review_queue:review", modul: "M7" },
     { href: "/tanya-data", label: "Tanya Data", permission: "tanya_data:query", modul: "M9" },
+    { href: "/merchants", label: "Master Merchant", permission: "merchants:read", modul: "Master" },
+    { href: "/perangkat", label: "Master Perangkat", permission: "merchants:read", modul: "Master" },
   ],
   teknisi: [
     { href: "/dashboard", label: "Dashboard", permission: "dashboard:view", modul: "M11" },
@@ -115,6 +129,8 @@ export const ROLE_MENUS: Record<Role, readonly MenuItem[]> = {
     { href: "/laporan/aduan", label: "Laporan Aduan Wilayah", permission: "reports:read", modul: "M11" },
     { href: "/laporan/kunjungan", label: "Laporan Kunjungan", permission: "reports:read", modul: "M11" },
     { href: "/tanya-data", label: "Tanya Data", permission: "tanya_data:query", modul: "M9" },
+    { href: "/merchants", label: "Master Merchant", permission: "merchants:read", modul: "Master" },
+    { href: "/perangkat", label: "Master Perangkat", permission: "merchants:read", modul: "Master" },
   ],
   analis: [
     { href: "/analis/koreksi-sql", label: "Koreksi SQL", permission: "sql:correct", modul: "M9" },
@@ -126,6 +142,8 @@ export const ROLE_MENUS: Record<Role, readonly MenuItem[]> = {
       modul: "M10",
     },
     { href: "/analis/koreksi-cv", label: "Antrean Koreksi CV", permission: "cv_corrections:review", modul: "M7" },
+    { href: "/merchants", label: "Master Merchant", permission: "merchants:read", modul: "Master" },
+    { href: "/perangkat", label: "Master Perangkat", permission: "merchants:read", modul: "Master" },
     // M3-05: penelusuran log juga untuk Analis Data.
     { href: "/admin/audit", label: "Audit Log", permission: "audit:read", modul: "M3" },
   ],

@@ -109,6 +109,40 @@ Catatan:
 - Trigger mencegah aplikasi mengubah log. Pemilik database (role `neondb_owner`) masih bisa mematikan
   trigger, jadi untuk produksi aplikasi sebaiknya memakai role database terpisah yang bukan pemilik tabel.
 
+## Master Merchant dan Perangkat
+
+Satu merchant punya satu atau banyak perangkat.
+
+| Tabel | Kolom |
+| --- | --- |
+| `merchants` | `id`, `kode_merchant` (MRC-xxxxxx, unik, tidak bisa diubah), `nama`, `pemilik` (owner/PIC), `alamat`, `kabupaten`, `telepon`, `email` (opsional), `region_id`, `status`, `didaftarkan_oleh` (petugas), waktu dibuat/diperbarui |
+| `devices` | `id`, `kode_perangkat` (EDC-xxxxx, otomatis), `merchant_id`, `serial_number` (unik), `merk`, `tipe_perangkat`, `firmware_terakhir`, waktu dibuat/diperbarui |
+
+| Halaman | Isi |
+| --- | --- |
+| `/merchants` | Daftar merchant dengan pencarian (kode, nama, kabupaten), filter wilayah, jumlah perangkat |
+| `/merchants/baru` | Daftarkan merchant (supervisor, wilayahnya sendiri) |
+| `/merchants/[id]` | Detail merchant, daftar perangkat, form tambah perangkat |
+| `/merchants/[id]/edit` | Ubah data merchant dan status aktif/nonaktif |
+| `/perangkat` | Semua perangkat dalam cakupan, cari per serial number, kode, merk, tipe, firmware |
+| `/perangkat/[id]/edit` | Ubah perangkat, mis. memperbarui firmware |
+
+Hak akses:
+
+| Peran | Akses |
+| --- | --- |
+| Supervisor | Lihat, daftarkan, dan ubah merchant serta perangkat di wilayahnya (`merchants:manage`, `devices:manage`) |
+| Manajer | Lihat semua wilayah, hanya baca |
+| Analis | Lihat semua wilayah, owner/alamat/telepon/email disamarkan |
+| Teknisi, Superadmin | Tidak ada akses |
+
+Normalisasi input: kode `mrc 000123` menjadi `MRC-000123`, telepon `+62 812-3456-7890` menjadi `081234567890`,
+serial number huruf besar tanpa spasi. Semua perubahan tercatat di audit log (`merchant.dibuat`, `merchant.diubah`,
+`perangkat.dibuat`, `perangkat.diubah`); perubahan data kontak dicatat sebagai `(diubah)` tanpa nilai mentah.
+
+Akses per objek di kode server lewat `getMerchantForUser()` dan `getDeviceForUser()` di `src/lib/master-data.ts`:
+merchant di luar wilayah diperlakukan seperti tidak ada (404) dan percobaannya dicatat.
+
 ## Testing E2E (Playwright)
 
 Dokumentasi lengkap: [docs/TESTING.md](docs/TESTING.md) (cara kerja, daftar test, keterlacakan ke PRD,
@@ -127,7 +161,8 @@ npm run test:e2e:report   # buka laporan HTML hasil run terakhir
 | `e2e/rbac.spec.ts` | Menu per peran, matriks akses semua halaman per peran, pembatasan wilayah API dan dashboard |
 | `e2e/admin.spec.ts` | Buat akun, validasi, ubah peran, nonaktifkan akun, regresi bug reset form |
 | `e2e/audit.spec.ts` | Akses halaman Audit Log, filter, penolakan tercatat, log tidak bisa diubah |
-| `e2e/cleanup.teardown.ts` | Hapus akun buatan test (email berawalan `e2e-`) |
+| `e2e/master-data.spec.ts` | Daftarkan/ubah merchant dan perangkat, validasi, wilayah, hanya baca, masking analis |
+| `e2e/cleanup.teardown.ts` | Hapus data buatan test (akun `e2e-`, merchant `MRC-8/9xxxxx`, serial `E2E-`) |
 
 Catatan:
 - Test memakai database dari `.env.local`. Seed di awal mengembalikan peran dan wilayah akun demo ke bawaan.

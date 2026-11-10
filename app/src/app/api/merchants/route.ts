@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const rows = await db
     .select({
-      merchantId: merchants.merchantId,
+      kodeMerchant: merchants.kodeMerchant,
       nama: merchants.nama,
       regionId: merchants.regionId,
       wilayah: regions.nama,
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         requested !== undefined && Number.isInteger(requested) ? eq(merchants.regionId, requested) : undefined,
       ),
     )
-    .orderBy(merchants.merchantId);
+    .orderBy(merchants.kodeMerchant);
 
   return Response.json({ role: user.role, scope: user.scope, count: rows.length, data: rows });
 }

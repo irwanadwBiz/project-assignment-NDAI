@@ -1,7 +1,7 @@
 # Dokumentasi Testing
 
 Panduan menjalankan, membaca, dan menambah test end-to-end (E2E) untuk Pusat Kendali Merchant & Perangkat EDC.
-Saat ini test mencakup modul M1 (Autentikasi), M2 (RBAC), dan M3 (Audit Log). Modul lain menambah test-nya
+Saat ini test mencakup modul M1 (Autentikasi), M2 (RBAC), M3 (Audit Log), serta master merchant dan perangkat. Modul lain menambah test-nya
 sendiri mengikuti pola di [Menambah test untuk modul baru](#menambah-test-untuk-modul-baru).
 
 Daftar isi:
@@ -27,7 +27,7 @@ Daftar isi:
 | Browser | Lokal: Google Chrome yang terpasang (`channel: "chrome"`). CI: Chromium Playwright |
 | Lokasi test | `e2e/` |
 | Konfigurasi | `playwright.config.ts` |
-| Jumlah test | 49 (8 setup, 1 cleanup, 40 test) |
+| Jumlah test | 65 (8 setup, 1 cleanup, 56 test) |
 | Waktu jalan | sekitar 1,5 sampai 2 menit |
 | Database | Neon dari `DATABASE_URL` di `.env.local` (database yang sama dengan pengembangan) |
 
@@ -77,9 +77,10 @@ menyalakannya sendiri dan mematikannya lagi setelah selesai. Bila port 3000 dipa
 Hasil yang diharapkan:
 
 ```text
-Running 49 tests using 1 worker
+Running 65 tests using 1 worker
+cleanup: 2 perangkat dan 1 merchant e2e dihapus
 cleanup: 4 akun e2e dihapus
-  49 passed (1.7m)
+  65 passed (1.9m)
 ```
 
 ## Cara kerja suite
@@ -96,8 +97,9 @@ setup  ──►  chrome (semua *.spec.ts)  ──►  cleanup
    - Login lewat form sekali untuk tiap akun demo, lalu menyimpan cookie sesinya ke `e2e/.auth/<akun>.json`.
      Test lain memakai file ini (`test.use({ storageState: authFile("admin") })`) supaya tidak perlu login ulang.
 2. **chrome**: semua file `*.spec.ts`, satu per satu (`workers: 1`), karena semuanya memakai database yang sama.
-3. **cleanup** (`e2e/cleanup.teardown.ts`): menghapus akun buatan test (email berawalan `e2e-`). Berjalan
-   walaupun ada test yang gagal.
+3. **cleanup** (`e2e/cleanup.teardown.ts`): menghapus data buatan test, yaitu perangkat (serial `E2E-...`),
+   merchant (kode `MRC-8xxxxx` / `MRC-9xxxxx`), dan akun (email berawalan `e2e-`). Berjalan walaupun ada test
+   yang gagal.
 
 Akun demo yang dipakai (didefinisikan di `src/db/seed-data.ts`, kata sandi di `SEED_PASSWORD`):
 
@@ -111,7 +113,9 @@ Akun demo yang dipakai (didefinisikan di `src/db/seed-data.ts`, kata sandi di `S
 | `manajer` | Manajer Operasional | semua |
 | `analis` | Analis Data | semua |
 
-Merchant demo: 3 di DKI Jakarta (`MRC-0001xx`), 2 di Jawa Barat (`MRC-0002xx`), 2 di Jawa Timur (`MRC-0003xx`).
+Merchant demo: 3 di DKI Jakarta (`MRC-0001xx`), 2 di Jawa Barat (`MRC-0002xx`), 2 di Jawa Timur (`MRC-0003xx`),
+dengan total 11 perangkat (satu merchant punya 1 sampai 3 perangkat). Kode `MRC-8xxxxx` dan `MRC-9xxxxx` serta serial
+berawalan `E2E-` dicadangkan untuk data test.
 
 ## Daftar test
 
@@ -173,6 +177,27 @@ Berjalan berurutan (`mode: "serial"`) dengan satu akun e2e yang dibuat di awal.
 | Log tidak bisa diubah, dihapus, atau dikosongkan | `UPDATE`, `DELETE`, `TRUNCATE` ditolak trigger; baris tetap utuh (M3-03) |
 | API yang ditolak juga tercatat | Audit `akses.ditolak` dengan `{ via: "api" }` |
 
+### `e2e/master-data.spec.ts`: Master merchant dan perangkat
+
+Berjalan berurutan dengan satu merchant e2e (`MRC-9xxxxx`) yang dibuat supervisor Jakarta.
+
+| Test | Yang dibuktikan |
+| --- | --- |
+| Daftar merchant supervisor | Hanya wilayahnya; tombol "Daftarkan merchant" tersedia |
+| Validasi | Kode di luar format `MRC-xxxxxx` dan nomor telepon tidak valid ditolak |
+| Mendaftarkan merchant | Kode dinormalisasi (`mrc940291` menjadi `MRC-940291`), telepon `+62...` menjadi `08...`, email huruf kecil, petugas pendaftar tercatat; audit `merchant.dibuat` |
+| Kode merchant ganda | Pesan jelas, bukan error server |
+| Banyak perangkat per merchant | Dua perangkat ditambahkan, kode `EDC-xxxxx` otomatis; audit `perangkat.dibuat` |
+| Serial number ganda | Ditolak dengan pesan jelas |
+| Perbarui firmware | Tampil di detail merchant; audit `perangkat.diubah` berisi sebelum/sesudah |
+| Ubah merchant | Kode terkunci; perubahan nama/status tercatat; nomor telepon baru **tidak** ditulis mentah ke log |
+| Cari perangkat per serial number | Halaman Master Perangkat |
+| Form dimanipulasi (wilayah lain disisipkan) | Server menolak; merchant tidak dibuat |
+| Supervisor wilayah lain | Detail dan edit merchant Jakarta menampilkan 404; percobaannya tercatat `akses.ditolak`; perangkatnya tidak muncul |
+| Manajer | Semua wilayah, tanpa tombol ubah/tambah; halaman tambah dan ubah 403 |
+| Analis | Owner, alamat, telepon, dan email tersamarkan |
+| Teknisi | Tidak punya akses ke master merchant |
+
 ## Keterlacakan ke PRD
 
 | Kebutuhan PRD | Test |
@@ -190,6 +215,8 @@ Berjalan berurutan (`mode: "serial"`) dengan satu akun e2e yang dibuat di awal.
 | M3-03 Audit log tidak dapat diubah | audit: UPDATE/DELETE/TRUNCATE ditolak |
 | M3-04 Masking sebelum ke model | Belum ada test E2E (fungsi murni, cocok untuk unit test) |
 | M3-05 Halaman penelusuran log | audit: akses dan filter |
+| PRD bagian 8: `merchants`, `devices` (ID konsisten MRC-xxxxxx, EDC-xxxxx) | master-data: pendaftaran, kode otomatis, normalisasi |
+| PRD bagian 3: Analis memakai data dengan masking | master-data: analis melihat kontak tersamarkan |
 | UAT-04 Supervisor bertanya wilayah lain | rbac: `?region=` wilayah lain mendapat 0 baris (versi API; versi Tanya Data menyusul di M9) |
 | UAT-07 Koreksi SQL tercatat | Belum: menunggu M9 |
 
@@ -274,6 +301,13 @@ Langkah:
 - **Data milik test**: email `e2e-...@pusatkendali.test` via `uniqueEmail()`. Jangan mengubah akun demo
   secara permanen; bila perlu mengubahnya, seed berikutnya akan memulihkannya.
 - **Urutan**: file yang langkahnya saling bergantung memakai `test.describe.configure({ mode: "serial" })`.
+- **Halaman sebelumnya tersembunyi**: setelah navigasi lewat link, Next.js 16 menyimpan halaman sebelumnya
+  tersembunyi di DOM. Bila locator menemukan 2 elemen, tambahkan `.filter({ visible: true })`.
+- **Petunjuk isian di luar `<label>`**: teks petunjuk di dalam label ikut menjadi nama aksesibel
+  ("Email Opsional."). Letakkan petunjuk di luar label dan hubungkan dengan `aria-describedby`
+  (lihat `Field` di `src/app/(app)/merchants/forms.tsx`).
+- **Manipulasi form**: untuk menguji validasi server, ubah form setelah halaman interaktif (tepat sebelum
+  kirim), karena hydration React bisa mengembalikan nilai awal.
 
 ## Pemecahan masalah
 
@@ -284,6 +318,7 @@ Langkah:
 | Test pertama lambat atau timeout | Kompilasi pertama Next dev bisa puluhan detik. Timeout test sudah 90 detik; jalankan `npm run dev` lebih dulu supaya halaman sudah terkompilasi |
 | `strict mode violation: getByRole('alert') resolved to 2 elements` | Next.js punya elemen route announcer ber-role `alert`. Pakai `loginError(page)` |
 | Halaman 404 atau 403 tapi status HTTP 200 | Halaman di-stream (`loading.tsx`), jadi status dikirim sebelum `notFound()`/`forbidden()` terpanggil. Periksa isi halaman, bukan status. API tetap mengembalikan 401/403 yang benar |
+| Simpan data duplikat menampilkan "This page couldn't load" | Error database tidak tertangkap. Drizzle membungkus error driver; kode Postgres (`23505`) ada di `err.cause`, jadi periksa rantai `cause` (lihat `isUniqueViolation` di `src/app/(app)/merchants/actions.ts`) |
 | Akun demo punya peran yang salah | Jalankan `npm run db:seed`; seed mengembalikan peran, wilayah, dan status aktif bawaan |
 | Login di setup gagal | Cek kata sandi akun demo belum diubah manual. Seed tidak mengubah kata sandi akun yang sudah ada |
 | `npm install` sangat lambat | Pakai `npm install --prefer-offline` supaya npm memakai cache. Jangan menjalankan dua `npm install` bersamaan di folder yang sama |

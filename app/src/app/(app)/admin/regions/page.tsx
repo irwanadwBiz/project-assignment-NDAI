@@ -29,7 +29,7 @@ export default async function RegionsPage() {
       id: regions.id,
       nama: regions.nama,
       pengguna: db.$count(userRegions, eq(userRegions.regionId, regions.id)),
-      merchant: count(merchants.merchantId),
+      merchant: count(merchants.id),
     })
     .from(regions)
     .leftJoin(merchants, eq(merchants.regionId, regions.id))

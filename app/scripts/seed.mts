@@ -7,8 +7,8 @@
 import { neon } from "@neondatabase/serverless";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
-import { merchants, regions, userRegions, users } from "../src/db/schema.ts";
-import { MERCHANTS, REGIONS, SEED_PASSWORD, USERS } from "../src/db/seed-data.ts";
+import { devices, merchants, regions, userRegions, users } from "../src/db/schema.ts";
+import { DEVICES, MERCHANTS, REGIONS, SEED_PASSWORD, USERS } from "../src/db/seed-data.ts";
 import { hashPassword } from "../src/lib/password.ts";
 
 async function main() {
@@ -38,12 +38,31 @@ async function main() {
     }
   }
 
+  // Merchant dan perangkat demo: hanya ditambahkan bila belum ada (perubahan manual dipertahankan).
+  const userIds = new Map(
+    (await db.select({ id: users.id, email: users.email }).from(users)).map((u) => [u.email, u.id]),
+  );
   await db
     .insert(merchants)
-    .values(MERCHANTS.map((m) => ({ merchantId: m.merchantId, nama: m.nama, regionId: regionId(m.wilayah) })))
-    .onConflictDoNothing();
+    .values(
+      MERCHANTS.map(({ wilayah, didaftarkanOleh, ...m }) => ({
+        ...m,
+        regionId: regionId(wilayah),
+        didaftarkanOleh: didaftarkanOleh ? (userIds.get(didaftarkanOleh) ?? null) : null,
+      })),
+    )
+    .onConflictDoNothing({ target: merchants.kodeMerchant });
+  const merchantIds = new Map(
+    (await db.select({ id: merchants.id, kode: merchants.kodeMerchant }).from(merchants)).map((m) => [m.kode, m.id]),
+  );
+  await db
+    .insert(devices)
+    .values(DEVICES.map(({ kodeMerchant, ...d }) => ({ ...d, merchantId: merchantIds.get(kodeMerchant)! })))
+    .onConflictDoNothing({ target: devices.serialNumber });
 
-  console.log(`Seed selesai: ${REGIONS.length} wilayah, ${USERS.length} akun, ${MERCHANTS.length} merchant.`);
+  console.log(
+    `Seed selesai: ${REGIONS.length} wilayah, ${USERS.length} akun, ${MERCHANTS.length} merchant, ${DEVICES.length} perangkat.`,
+  );
   console.log("Akun demo:");
   for (const u of USERS) console.log(`  ${u.role.padEnd(10)} ${u.email}`);
   console.log("Kata sandi: lihat SEED_PASSWORD di src/db/seed-data.ts");

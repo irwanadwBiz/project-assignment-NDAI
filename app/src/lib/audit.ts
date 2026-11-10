@@ -18,6 +18,10 @@ export const AUDIT_ACTIONS = {
   "user.dinonaktifkan": "Akun dinonaktifkan",
   "user.diaktifkan": "Akun diaktifkan",
   "wilayah.dibuat": "Wilayah dibuat",
+  "merchant.dibuat": "Merchant didaftarkan",
+  "merchant.diubah": "Data merchant diubah",
+  "perangkat.dibuat": "Perangkat ditambahkan",
+  "perangkat.diubah": "Data perangkat diubah",
   // Disiapkan untuk modul lain (M3-01, M3-02)
   "tanya_data.query": "Tanya Data: pertanyaan & SQL",
   "tanya_data.sql_dikoreksi": "Tanya Data: SQL dikoreksi analis",

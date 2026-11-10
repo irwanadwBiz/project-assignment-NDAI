@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   const rows = can(user.role, "merchants:read")
     ? await db
         .select({
-          merchantId: merchants.merchantId,
+          kodeMerchant: merchants.kodeMerchant,
           nama: merchants.nama,
           wilayah: regions.nama,
           status: merchants.status,
@@ -29,7 +29,7 @@ export default async function DashboardPage() {
         .from(merchants)
         .innerJoin(regions, eq(regions.id, merchants.regionId))
         .where(and(regionCondition(user, merchants.regionId)))
-        .orderBy(regions.nama, merchants.merchantId)
+        .orderBy(regions.nama, merchants.kodeMerchant)
     : null;
 
   return (
@@ -68,8 +68,8 @@ export default async function DashboardPage() {
             </thead>
             <tbody>
               {rows.map((m) => (
-                <tr key={m.merchantId} className="border-t border-zinc-100">
-                  <td className="px-4 py-2 font-mono">{m.merchantId}</td>
+                <tr key={m.kodeMerchant} className="border-t border-zinc-100">
+                  <td className="px-4 py-2 font-mono">{m.kodeMerchant}</td>
                   <td className="px-4 py-2">{m.nama}</td>
                   <td className="px-4 py-2">{m.wilayah}</td>
                   <td className="px-4 py-2">{m.status}</td>
